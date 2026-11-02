@@ -1,7 +1,7 @@
-# Maintainer: Ville <47714239+iiseppi@users.noreply.github.com>
+# Maintainer: iiseppi <47714239+iiseppi@users.noreply.github.com>
 pkgname=weewx
 pkgver=5.5.2
-pkgrel=0
+pkgrel=1
 pkgdesc="Weather station software: data collection, reports, graphs and uploads"
 url="https://weewx.com/"
 arch="noarch"
