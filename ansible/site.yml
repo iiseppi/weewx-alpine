@@ -19,3 +19,18 @@
   roles:
     - weewx
     - weewx_nginx
+
+  post_tasks:
+    # Diskless mode keeps /etc in RAM: save the changes with lbu, but only when
+    # there are any.
+    - name: Look for changes to save with lbu
+      ansible.builtin.command: lbu status
+      register: weewx_lbu_status
+      changed_when: false
+      check_mode: false
+      when: weewx_run_from_ram
+
+    - name: Save the configuration with lbu
+      ansible.builtin.command: lbu commit
+      changed_when: true
+      when: weewx_run_from_ram and weewx_lbu_status.stdout | trim | length > 0

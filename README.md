@@ -132,6 +132,49 @@ toimii silti. Esimerkkiasetukset rsyslogille ja logrotatelle ovat hakemistossa
   `weewx_opts="--loop-on-init"`. Muuten supervise-daemon luovuttaa viiden
   epäonnistuneen käynnistysyrityksen jälkeen (`/etc/rc.conf`:n oletus).
 
+## Raspberry Pi
+
+Paketti toimii kaikissa Raspberry Pi -malleissa, joissa Alpine toimii. Paketti
+on `noarch`, ja apk-repossa on indeksit kaikille arkkitehtuureille.
+Riippuvuudet löytyvät Alpinen repoista myös ARM-arkkitehtuureille.
+
+| Malli | Alpinen arkkitehtuuri |
+|---|---|
+| Pi 3, 4, 5 ja Zero 2 W (64-bittinen Alpine) | `aarch64` |
+| Pi 2, 3 ja 4 (32-bittinen Alpine) | `armv7` |
+| Pi 1 ja Zero | `armhf` |
+
+- **Asennustila.** Asenna Alpine sys-tilassa (`setup-disk -m sys`, katso
+  [Alpinen ohje](https://wiki.alpinelinux.org/wiki/Classic_install_or_sys_mode_on_Raspberry_Pi)).
+  Diskless-tilassa koko järjestelmä on RAM-levyllä, jolloin weewx:n
+  tietokanta `/var/lib/weewx` katoaa joka uudelleenkäynnistyksessä. Jos
+  käytät diskless-tilaa, tarvitset kolme asiaa:
+  - `/var` on levyllä (data disk -tila)
+  - apk-välimuisti on käytössä (`setup-apkcache`)
+  - muutokset tallennetaan komennolla `lbu commit`
+
+  [Ansible-playbook](ansible/README.md) tarkistaa nämä ja ajaa
+  `lbu commit`in itse.
+- **Kello.** Useimmissa Pi-malleissa ei ole akullista kelloa (RTC), joten
+  valitse `setup-alpine`:ssa NTP-asiakkaaksi chrony.
+  - Alpinen chronyd odottaa oletuksena, että aika on synkronoitu, ennen kuin
+    käynnistys jatkuu, ja weewx käynnistyy chronydin jälkeen.
+  - Näin weewx ei kirjoita väärää aikaa tietokantaan eikä aseta väärää aikaa
+    Vantage-konsolin kelloon.
+  - Jos verkkoa ei ole käynnistyksen aikana, aika voi olla väärin, kunnes
+    chrony saa yhteyden.
+- **Davis Vantage ja USB-dataloggeri.** Loggerin `cp210x`-ajuri on Pin
+  `linux-rpi`-kernelissä, ja mdev lataa sen automaattisesti. Laite näkyy
+  nimellä `/dev/ttyUSB0`.
+- **Muistikortti.** weewx kirjoittaa tietokannan ja raporttien kuvaajat
+  arkistovälin välein (oletus 5 min). Pitkäaikaisessa käytössä USB-SSD
+  kestää paremmin kuin muistikortti.
+
+Testattu: `aarch64` natiivisti ja `armv7` sekä `armhf` emuloituna (qemu)
+Docker-konteissa. Testeissä tarkistettiin asennus, raportit, almanakka ja
+simuloitu Vantage-loggeri. Oikealla Raspberry Pi -laitteella pakettia ei ole
+testattu.
+
 ## Raporttien julkaisu verkkoon
 
 [Ansible-playbook](ansible/README.md) asentaa WeeWX:n ja nginxin niin, että

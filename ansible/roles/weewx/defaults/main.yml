@@ -5,6 +5,13 @@ weewx_repo_url: https://iiseppi.github.io/weewx-alpine
 weewx_repo_key: 47714239+iiseppi@users.noreply.github.com-6ae840cb.rsa.pub
 weewx_repo_key_sha256: 50db6b26acdbcfc58f2f673c7818add0e47ec6fdbc3790461f66c5b67dee88ce
 
+# Alpine running from RAM (diskless or data disk mode, common on a Raspberry
+# Pi): null detects it from the root file system, or set true or false.
+weewx_diskless: null
+# When running from RAM, stop unless the database directory is on a disk and
+# the apk cache is set up (setup-apkcache), so that weewx survives a reboot.
+weewx_check_persistence: true
+
 # 'latest' also upgrades weewx on every run
 weewx_package_state: present
 weewx_packages:

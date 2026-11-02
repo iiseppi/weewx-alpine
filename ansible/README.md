@@ -58,6 +58,8 @@ Kaikki muuttujat oletusarvoineen löytyvät tiedostoista
 | `weewx_nginx_path` | `/` | Raporttien polku, esim. `/weewx/` |
 | `weewx_nginx_port`, `weewx_nginx_server_name` | `80`, `_` | nginxin portti ja palvelimen nimi |
 | `weewx_nginx_default_server` | `true` | Vastaa kaikkiin nimiin ja ottaa pois nginx-paketin oman 404-oletuspalvelimen |
+| `weewx_diskless` | tunnistetaan | Toimiiko Alpine RAM-levyltä (diskless). Oletuksena tunnistetaan juuritiedostojärjestelmästä, tai aseta `true`/`false` |
+| `weewx_check_persistence` | `true` | Diskless-tilassa ajo pysähtyy, jos tietokanta katoaisi uudelleenkäynnistyksessä |
 
 ### Omat weewx.conf-asetukset
 
@@ -98,6 +100,25 @@ udevin kanssa (`setup-devd udev`) laite näkyy lisäksi nimellä
 `/dev/vantage`. `--loop-on-init` saa weewxd:n yrittämään uudelleen, jos
 konsoli ei vastaa heti käynnistyksessä.
 
+## Raspberry Pi ja diskless-tila
+
+Playbook toimii Pillä samoin kuin muuallakin. Pin erityispiirteet (asennustila,
+kello ja muistikortti) on kuvattu pää-README:n
+[Raspberry Pi -osiossa](../README.md#raspberry-pi).
+
+Alpine Pi -asennukset ovat usein diskless-tilassa, jolloin järjestelmä on
+RAM-levyllä. Playbook tunnistaa tilan, koska juuritiedostojärjestelmä on
+silloin `tmpfs`. Diskless-tilassa playbook toimii näin:
+
+- Se pysähtyy, jos myös `/var/lib/weewx` on RAM-levyllä, koska tietokanta
+  katoaisi uudelleenkäynnistyksessä. Ratkaisuja on kaksi: sys-tila
+  (`setup-disk -m sys`) tai data disk -tila, jossa `/var` on levyllä.
+- Se pysähtyy, jos apk-välimuisti puuttuu, koska weewx ja nginx katoaisivat
+  uudelleenkäynnistyksessä. Ota välimuisti käyttöön komennolla
+  `setup-apkcache`.
+- Lopuksi se tallentaa muutokset komennolla `lbu commit`, mutta vain jos
+  jokin muuttui. Näin toinen ajo antaa yhä `changed=0`.
+
 ## HTTPS
 
 nginx kuuntelee vain HTTP:tä. Jos asema näkyy internetiin, lisää varmenne,
@@ -116,5 +137,8 @@ Testeissä tarkistettiin seuraavat asiat:
 - Kun ajuriksi vaihdetaan Vantage, weewxd lukee simuloitua USB-loggeria
   (`/dev/ttyUSB0`), ja raportissa näkyy `Vantage Pro2`. Tämänkin jälkeen
   toinen ajo antaa `changed=0`.
+- Simuloitu diskless-tila: ajo pysähtyy, jos tietokanta on RAM-levyllä tai
+  apk-välimuisti puuttuu. Oikein asetetussa järjestelmässä ensimmäinen ajo
+  tallentaa muutokset `lbu commit`illa, ja toinen ajo antaa `changed=0`.
 
-Oikealla Davis-laitteella playbookia ei ole testattu.
+Oikealla Davis-laitteella tai Raspberry Pillä playbookia ei ole testattu.

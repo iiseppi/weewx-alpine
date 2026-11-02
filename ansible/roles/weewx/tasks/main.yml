@@ -1,4 +1,51 @@
 ---
+- name: Find the file systems of / and of the database directory
+  ansible.builtin.shell: |
+    set -eu
+    fstype() { awk -v p="$1" '$2 == p { t = $3 } END { print t }' /proc/mounts; }
+    fstype /
+    for p in /var/lib/weewx /var/lib /var /; do
+      t=$(fstype "$p")
+      if [ -n "$t" ]; then echo "$p $t"; break; fi
+    done
+  register: weewx_fstypes
+  changed_when: false
+  check_mode: false
+
+- name: Note whether Alpine runs from RAM
+  ansible.builtin.set_fact:
+    weewx_run_from_ram: >-
+      {{ (weewx_fstypes.stdout_lines[0] == 'tmpfs') if weewx_diskless is none
+         else (weewx_diskless | bool) }}
+
+- name: Check that weewx survives a reboot when Alpine runs from RAM
+  when: weewx_run_from_ram and weewx_check_persistence
+  block:
+    - name: Check that the database directory is on a disk
+      ansible.builtin.assert:
+        that: weewx_fstypes.stdout_lines[1].split()[1] != 'tmpfs'
+        fail_msg: >-
+          Alpine runs from RAM (diskless mode) and so does {{ weewx_fstypes.stdout_lines[1].split()[0] }},
+          so the WeeWX database in /var/lib/weewx would be lost at every reboot.
+          Install Alpine in sys mode (setup-disk -m sys), use data disk mode (/var on a disk),
+          or set weewx_check_persistence to false.
+        quiet: true
+
+    - name: Look for the apk cache
+      ansible.builtin.stat:
+        path: /etc/apk/cache
+        follow: true
+      register: weewx_apk_cache
+
+    - name: Check that the apk cache is set up
+      ansible.builtin.assert:
+        that: weewx_apk_cache.stat.isdir is defined and weewx_apk_cache.stat.isdir
+        fail_msg: >-
+          Alpine runs from RAM and reinstalls its packages from the apk cache at boot,
+          but /etc/apk/cache is missing: weewx and nginx would be gone after a reboot.
+          Set up the cache with setup-apkcache.
+        quiet: true
+
 - name: Read the apk repositories
   ansible.builtin.slurp:
     src: /etc/apk/repositories
