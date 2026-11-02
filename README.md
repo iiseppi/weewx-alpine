@@ -56,6 +56,8 @@ käynnistää).
 | `build.sh` | Rakentaa paketit Docker-kontissa |
 | `mkrepo.sh` | Kokoaa paketeista apk-repon hakemistoon `site/` |
 | `publish.sh` | Julkaisee `site/`-hakemiston gh-pages-haaraan (GitHub Pages) |
+| `test.sh`, `tests/` | Asennustesti Helsingin aikavyöhykkeellä ja suomalaisilla muodoilla |
+| `examples/suomi.conf` | Suomen kieli, metriset yksiköt, 24 h kello ja muoto 31.10.2026 |
 
 ## Hakemistorakenne
 
@@ -80,6 +82,31 @@ ja `weewx-udev`. Ne asentuvat automaattisesti, kun vastaava järjestelmän osa
 Ilman `tzdata`-pakettia Alpine käyttää UTC-aikaa, jolloin päivän vaihtuminen,
 päiväyhteenvedot ja raporttien kellonajat menevät väärin. Aseta aikavyöhyke
 komennolla `setup-timezone Europe/Helsinki`.
+
+### Suomalaiset päivämäärät ja kellonajat
+
+WeeWX:n oletusmuodot (`%x %X`) noudattavat lokaalia, mutta Alpinen musl-libc
+ei osaa muotoilla päivämääriä lokaalin mukaan: `%x` on aina `10/31/26`.
+Kellonajan `%X` musl antaa valmiiksi 24-tuntisena. Tiedostossa
+[examples/suomi.conf](examples/suomi.conf) ovat suomen kieli, metriset
+yksiköt ja suomalaiset muodot (`31.10.2026 14:30`), myös kuvaajien
+alareunan aikaleimalle. Yhdistä se omaan konfiguraatioosi:
+
+```bash
+wget https://raw.githubusercontent.com/iiseppi/weewx-alpine/main/examples/suomi.conf
+```
+
+```bash
+python3 -c "import configobj; c = configobj.ConfigObj('/etc/weewx/weewx.conf', encoding='utf-8', interpolation=False); c.merge(configobj.ConfigObj('suomi.conf', encoding='utf-8', interpolation=False)); c.write()"
+```
+
+```bash
+rc-service weewx restart
+```
+
+Voit myös kopioida osiot `weewx.conf`-tiedostoon käsin. Aikavyöhyke tulee
+järjestelmästä (`setup-timezone Europe/Helsinki`), eikä sitä aseteta
+weewx:ssä erikseen.
 
 ### Lokit
 
@@ -158,9 +185,13 @@ Sama pätee skin-tiedostoihin: muuttamattomat päivittyvät, muokatuista tulee
   laajennuksia ilman rootia.
 - MySQL/MariaDB-tuki ei kuulu riippuvuuksiin. Asenna se tarvittaessa:
   `apk add py3-pymysql`.
-- musl-libc ei tue lokaaleja. Jos skin käyttää `%x`-päivämäärämuotoa, vuosi
-  näkyy kaksinumeroisena (`09/03/10`, glibc:llä `09/03/2010`). Halutessasi
-  aseta muodot itse skin.conf-tiedoston `[Units][[TimeFormats]]`-osiossa.
+- musl-libc ei muotoile päivämääriä lokaalin mukaan: oletusmuoto `%x` on
+  aina amerikkalainen `10/31/26`. Suomalaiset muodot saa tiedostosta
+  [examples/suomi.conf](examples/suomi.conf) (katso yllä).
+- Python 3.14:llä (Alpine 3.24 ja edge) `weectl report run` tulostaa
+  Cheetahin C-laajennuksesta `Exception ignored in PyMapping_HasKeyString`
+  -varoituksia. Ne eivät vaikuta raportteihin. Palvelua ajettaessa ne eivät
+  näy, koska weewxd:n stderr ei mene lokiin.
 
 ## Testit
 
@@ -172,6 +203,25 @@ Sama pätee skin-tiedostoihin: muuttamattomat päivittyvät, muokatuista tulee
 
 Testit tarvitsevat `tzdata`-paketin, koska ne käyttävät aikavyöhykettä
 America/Los_Angeles.
+
+Valmiit paketit testataan lisäksi puhtaassa kontissa:
+
+```bash
+./test.sh 3.22 3.23 3.24 edge
+```
+
+[tests/helsinki.sh](tests/helsinki.sh) asentaa paketin ja asettaa
+aikavyöhykkeeksi Europe/Helsinki ja aseman sijainniksi Helsingin. Se ottaa
+käyttöön `examples/suomi.conf`-asetukset ja tuottaa säädataa 24.–31.10.2026.
+Mukana on talviaikaan siirtyminen 25.10. Sitten se ajaa raportit hetkellä
+31.10.2026 klo 14.30 ja tarkistaa, että:
+
+- aikavyöhyke ja kesä-/talviaika menevät oikein (12.30 UTC → 14.30 EET)
+- kaikki sivujen päivämäärät ovat muotoa `31.10.2026` eikä AM/PM-aikoja ole
+- kuvaajien aikaleimat ja kaikki `TimeFormats`-muodot ovat `%d.%m.%Y %H:%M`
+- almanakan auringonnousu, keskipäivä ja -lasku ovat Helsingin paikallisia
+  aikoja (07:39, 12:03, 16:27)
+- raportit ovat suomeksi, eikä syslogissa ole virheitä.
 
 ## Rakentaminen ja julkaisu
 
@@ -193,8 +243,9 @@ Uuden weewx-version julkaisu:
 1. Vaihda `weewx/APKBUILD`-tiedostoon uusi `pkgver` ja `pkgrel=0`. Jos
    muutat pelkkää paketointia, kasvata `pkgrel`-arvoa.
 2. Rakenna: `./build.sh 3.22 3.23 3.24 edge`
-3. Kokoa repo: `./mkrepo.sh`
-4. Commitoi ja pushaa lähteet, ja julkaise repo: `./publish.sh`
+3. Testaa: `./test.sh 3.22 3.23 3.24 edge`
+4. Kokoa repo: `./mkrepo.sh`
+5. Commitoi ja pushaa lähteet, ja julkaise repo: `./publish.sh`
 
 `publish.sh` korvaa gh-pages-haaran joka kerta, joten vanhat paketit eivät
 kerry repon historiaan.
