@@ -1,0 +1,33 @@
+# {{ ansible_managed }}
+# WeeWX writes the reports to {{ weewx_nginx_html_root }} every archive interval.
+{% set default = ' default_server' if weewx_nginx_default_server else '' %}
+server {
+    listen {{ weewx_nginx_port }}{{ default }};
+    listen [::]:{{ weewx_nginx_port }}{{ default }};
+    server_name {{ weewx_nginx_server_name }};
+
+    # The pages and plots change every archive interval: browsers check for
+    # a new version on each load (a cheap 304 when nothing has changed).
+    add_header Cache-Control "no-cache";
+    gzip on;
+    gzip_types text/css text/plain application/javascript application/json
+               application/rss+xml application/xml;
+
+{% if weewx_nginx_path == '/' %}
+    root {{ weewx_nginx_html_root }};
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+{% else %}
+    location = / {
+        return 302 {{ weewx_nginx_path }};
+    }
+
+    location {{ weewx_nginx_path }} {
+        alias {{ weewx_nginx_html_root }}/;
+        index index.html;
+    }
+{% endif %}
+}

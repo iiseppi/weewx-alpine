@@ -58,6 +58,7 @@ käynnistää).
 | `publish.sh` | Julkaisee `site/`-hakemiston gh-pages-haaraan (GitHub Pages) |
 | `test.sh`, `tests/` | Asennustesti Helsingin aikavyöhykkeellä ja suomalaisilla muodoilla |
 | `examples/suomi.conf` | Suomen kieli, metriset yksiköt, 24 h kello ja muoto 31.10.2026 |
+| `ansible/` | Ansible-playbook, joka asentaa WeeWX:n ja nginxin valmiiksi asetettuina ([ohje](ansible/README.md)) |
 
 ## Hakemistorakenne
 
@@ -132,6 +133,9 @@ toimii silti. Esimerkkiasetukset rsyslogille ja logrotatelle ovat hakemistossa
   epäonnistuneen käynnistysyrityksen jälkeen (`/etc/rc.conf`:n oletus).
 
 ## Raporttien julkaisu verkkoon
+
+[Ansible-playbook](ansible/README.md) asentaa WeeWX:n ja nginxin niin, että
+raportit näkyvät suoraan osoitteessa `http://ASEMA/`. Saman voi tehdä myös käsin.
 
 Raportit ovat staattisia tiedostoja hakemistossa `/var/www/html/weewx`. Esimerkiksi
 nginxillä (`apk add nginx`), tiedostossa `/etc/nginx/http.d/weewx.conf`:

@@ -1,0 +1,10 @@
+---
+weewx_nginx_port: 80
+weewx_nginx_server_name: _
+# URL path of the reports: / or a path ending in /, such as /weewx/
+weewx_nginx_path: /
+# HTML_ROOT of the weewx package
+weewx_nginx_html_root: /var/www/html/weewx
+# Answer requests for any host name. This also turns off the default server
+# of Alpine's nginx package (/etc/nginx/http.d/default.conf), which answers 404.
+weewx_nginx_default_server: true

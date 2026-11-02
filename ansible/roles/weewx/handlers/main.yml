@@ -1,0 +1,5 @@
+---
+- name: Restart weewx
+  ansible.builtin.service:
+    name: weewx
+    state: restarted

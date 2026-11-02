@@ -1,0 +1,39 @@
+---
+- name: Check the URL path of the reports
+  ansible.builtin.assert:
+    that: weewx_nginx_path is match('^/(.*/)?$')
+    fail_msg: weewx_nginx_path must start and end with /, e.g. / or /weewx/
+    quiet: true
+
+- name: Install nginx
+  community.general.apk:
+    name: nginx
+    state: present
+    update_cache: true
+
+- name: Turn off the default server of the nginx package
+  # Emptied rather than removed, so that an nginx upgrade keeps it off
+  # (apk saves its own version as default.conf.apk-new).
+  ansible.builtin.copy:
+    content: "# Turned off by Ansible: WeeWX (weewx.conf) is the default server.\n"
+    dest: /etc/nginx/http.d/default.conf
+    mode: "0644"
+  when: weewx_nginx_default_server
+  notify: Reload nginx
+
+- name: Serve the WeeWX reports
+  ansible.builtin.template:
+    src: weewx.conf.j2
+    dest: /etc/nginx/http.d/weewx.conf
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Check the nginx configuration
+  ansible.builtin.command: nginx -t
+  changed_when: false
+
+- name: Start nginx now and at boot
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true

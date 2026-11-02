@@ -5,3 +5,5 @@ packages/
 weewx/src/
 weewx/pkg/
 site/
+# your own hosts (copy of ansible/inventory.example.yml)
+ansible/inventory.yml

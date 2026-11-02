@@ -1,0 +1,21 @@
+---
+# WeeWX from the weewx-alpine repository and nginx serving its reports, on
+# Alpine Linux 3.22 or newer. See README.md.
+- name: Set up WeeWX and nginx
+  hosts: weewx
+  become: true
+  gather_facts: false
+
+  pre_tasks:
+    - name: Install Python for Ansible
+      ansible.builtin.raw: test -e /usr/bin/python3 || apk add --no-cache python3
+      register: weewx_python
+      changed_when: weewx_python.stdout is search('OK:')
+
+    - name: Gather facts
+      ansible.builtin.setup:
+        gather_subset: [min]
+
+  roles:
+    - weewx
+    - weewx_nginx

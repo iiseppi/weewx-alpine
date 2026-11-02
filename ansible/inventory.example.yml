@@ -1,0 +1,26 @@
+---
+# Copy to inventory.yml and fill in your station. All variables and their
+# defaults: roles/weewx/defaults/main.yml and roles/weewx_nginx/defaults/main.yml
+weewx:
+  hosts:
+    saa.example.lan:
+  vars:
+    # root over SSH, or your own user with doas:
+    ansible_user: root
+    # ansible_user: admin
+    # ansible_become_method: community.general.doas
+
+    weewx_location: Helsinki, Kumpula
+    weewx_latitude: 60.20
+    weewx_longitude: 24.96
+    weewx_altitude: [25, meter]
+
+    # Davis Vantage with a USB data logger (/dev/ttyUSB0):
+    # weewx_driver: weewx.drivers.vantage
+    # weewx_opts: --loop-on-init
+    # weewx_conf:
+    #   Vantage:
+    #     port: /dev/ttyUSB0
+
+    # Reports at http://saa.example.lan/weewx/ instead of the root:
+    # weewx_nginx_path: /weewx/

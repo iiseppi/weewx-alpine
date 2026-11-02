@@ -1,0 +1,88 @@
+---
+- name: Read the apk repositories
+  ansible.builtin.slurp:
+    src: /etc/apk/repositories
+  register: weewx_apk_repositories
+
+- name: Find the Alpine mirror and branch from the main repository
+  ansible.builtin.set_fact:
+    weewx_main_repo: >-
+      {{ weewx_apk_repositories.content | b64decode
+         | regex_search('^\s*(\S+)/(v[0-9]+\.[0-9]+|edge)/main\s*$', '\1', '\2', multiline=True) }}
+
+- name: Check that the main repository was found
+  ansible.builtin.assert:
+    that: weewx_main_repo | length == 2
+    fail_msg: No Alpine main repository (.../v3.xx/main or .../edge/main) in /etc/apk/repositories
+    quiet: true
+
+- name: Enable the community repository
+  ansible.builtin.lineinfile:
+    path: /etc/apk/repositories
+    regexp: '^#?\s*{{ weewx_main_repo[0] | regex_escape }}/{{ weewx_main_repo[1] }}/community\s*$'
+    line: "{{ weewx_main_repo[0] }}/{{ weewx_main_repo[1] }}/community"
+
+- name: Install the signing key of the weewx-alpine repository
+  ansible.builtin.get_url:
+    url: "{{ weewx_repo_url }}/{{ weewx_repo_key }}"
+    dest: /etc/apk/keys/{{ weewx_repo_key }}
+    checksum: sha256:{{ weewx_repo_key_sha256 }}
+    mode: "0644"
+
+- name: Add the weewx-alpine repository
+  ansible.builtin.lineinfile:
+    path: /etc/apk/repositories
+    regexp: '^#?\s*{{ weewx_repo_url | regex_escape }}/'
+    line: "{{ weewx_repo_url }}/{{ weewx_main_repo[1] }}"
+
+- name: Install WeeWX
+  community.general.apk:
+    name: "{{ weewx_packages + weewx_extra_packages }}"
+    state: "{{ weewx_package_state }}"
+    update_cache: true
+  notify: Restart weewx
+
+- name: Set the time zone
+  when: weewx_timezone | length > 0
+  notify: Restart weewx
+  block:
+    - name: Point /etc/localtime to the time zone
+      ansible.builtin.file:
+        src: /usr/share/zoneinfo/{{ weewx_timezone }}
+        dest: /etc/localtime
+        state: link
+        force: true
+
+    - name: Write /etc/timezone
+      ansible.builtin.copy:
+        content: "{{ weewx_timezone }}\n"
+        dest: /etc/timezone
+        mode: "0644"
+
+- name: Configure the station
+  weewx_conf:
+    path: "{{ weewx_config_path }}"
+    driver: "{{ weewx_driver }}"
+    settings: "{{ weewx_conf_defaults | combine(weewx_conf, recursive=True) }}"
+  notify: Restart weewx
+
+- name: Keep weewx.conf readable only by the weewx group
+  ansible.builtin.file:
+    path: "{{ weewx_config_path }}"
+    owner: weewx
+    group: weewx
+    mode: "0660"
+
+- name: Set the options of weewxd
+  ansible.builtin.lineinfile:
+    path: /etc/conf.d/weewx
+    regexp: ^#?weewx_opts=
+    line: weewx_opts="{{ weewx_opts }}"
+  when: weewx_opts | length > 0
+  notify: Restart weewx
+
+- name: Start WeeWX now and at boot
+  ansible.builtin.service:
+    name: weewx
+    state: started
+    enabled: true

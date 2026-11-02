@@ -1,0 +1,75 @@
+---
+# apk repository with the weewx package (https://github.com/iiseppi/weewx-alpine).
+# The signing key is pinned by its checksum.
+weewx_repo_url: https://iiseppi.github.io/weewx-alpine
+weewx_repo_key: 47714239+iiseppi@users.noreply.github.com-6ae840cb.rsa.pub
+weewx_repo_key_sha256: 50db6b26acdbcfc58f2f673c7818add0e47ec6fdbc3790461f66c5b67dee88ce
+
+# 'latest' also upgrades weewx on every run
+weewx_package_state: present
+weewx_packages:
+  - weewx
+  - weewx-openrc
+  - tzdata
+# for example py3-pymysql for a MySQL/MariaDB database
+weewx_extra_packages: []
+
+# Empty: leave the system time zone alone
+weewx_timezone: Europe/Helsinki
+
+weewx_config_path: /etc/weewx/weewx.conf
+# weewx.drivers.simulator, weewx.drivers.vantage, ... (weectl station reconfigure --help)
+weewx_driver: weewx.drivers.simulator
+weewx_location: WeeWX
+weewx_latitude: 0.0
+weewx_longitude: 0.0
+weewx_altitude: [0, meter]
+weewx_lang: fi
+weewx_unit_system: metricwx
+# 31.10.2026 14:30; musl formats %x as 10/31/26 whatever the locale
+weewx_time_format: "%d.%m.%Y %H:%M"
+
+# Options for weewxd in /etc/conf.d/weewx, e.g. --loop-on-init for a station
+# that does not answer straight away at boot. Empty: leave the file alone.
+weewx_opts: ""
+
+# Your own weewx.conf settings, merged on top of weewx_conf_defaults. Nested
+# dictionaries are sections, lists are comma-separated values, e.g.
+#   weewx_conf:
+#     Vantage:
+#       port: /dev/ttyUSB0
+weewx_conf: {}
+
+weewx_conf_defaults:
+  Station:
+    location: "{{ weewx_location }}"
+    latitude: "{{ weewx_latitude }}"
+    longitude: "{{ weewx_longitude }}"
+    altitude: "{{ weewx_altitude }}"
+  StdReport:
+    Defaults:
+      lang: "{{ weewx_lang }}"
+      unit_system: "{{ weewx_unit_system }}"
+      Units:
+        TimeFormats:
+          hour: "%H:%M"
+          day: "%H:%M"
+          week: "{{ weewx_time_format }}"
+          month: "{{ weewx_time_format }}"
+          season: "{{ weewx_time_format }}"
+          year: "{{ weewx_time_format }}"
+          rainyear: "{{ weewx_time_format }}"
+          seasonsyear: "{{ weewx_time_format }}"
+          current: "{{ weewx_time_format }}"
+          ephem_day: "%H:%M"
+          ephem_year: "{{ weewx_time_format }}"
+    SeasonsReport:
+      ImageGenerator:
+        day_images:
+          bottom_label_format: "{{ weewx_time_format }}"
+        week_images:
+          bottom_label_format: "{{ weewx_time_format }}"
+        month_images:
+          bottom_label_format: "{{ weewx_time_format }}"
+        year_images:
+          bottom_label_format: "{{ weewx_time_format }}"
