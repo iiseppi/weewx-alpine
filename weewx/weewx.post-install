@@ -1,0 +1,20 @@
+#!/bin/sh
+
+cat >&2 <<EOF
+*
+* WeeWX is set up with the simulator driver. To configure your station:
+*
+*   weectl station reconfigure --config=/etc/weewx/weewx.conf
+*
+* Then start it, and start it on boot:
+*
+*   rc-service weewx start
+*   rc-update add weewx
+*
+* Reports go to /var/www/html/weewx, the database to /var/lib/weewx and
+* log messages to syslog. Add yourself to the weewx group to edit
+* /etc/weewx and install extensions without root: addgroup YOU weewx
+*
+EOF
+
+exit 0

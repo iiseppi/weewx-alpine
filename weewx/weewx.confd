@@ -1,0 +1,26 @@
+# Configuration for /etc/init.d/weewx
+#
+# Instances (/etc/init.d/weewx.NAME) read this file first, then
+# /etc/conf.d/weewx.NAME, so leave weewx_config unset here if you run more
+# than one station.
+
+# Configuration file. Default: /etc/weewx/weewx.conf, or /etc/weewx/NAME.conf
+# for the weewx.NAME instance.
+#weewx_config=
+
+# User and group to run weewxd as.
+#weewx_user=weewx
+#weewx_group=weewx
+
+# Extra options for weewxd, e.g. "--loop-on-init" to keep retrying until the
+# station hardware answers. See weewxd --help.
+#weewx_opts=
+
+# How long to wait for weewxd to exit before killing it.
+#retry="TERM/60/KILL/5"
+
+# weewxd is restarted if it exits unexpectedly. The defaults come from
+# /etc/rc.conf (2 s delay, at most 5 restarts in 30 min); if the station is
+# slow to answer at boot, use --loop-on-init above or raise these.
+#respawn_delay=30
+#respawn_max=10

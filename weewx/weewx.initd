@@ -1,0 +1,37 @@
+#!/sbin/openrc-run
+
+# Multiple stations: create a symlink per instance,
+#   ln -s weewx /etc/init.d/weewx.NAME
+# and it runs with /etc/weewx/NAME.conf. Each instance needs its own
+# database and HTML_ROOT in its configuration file. Per-instance settings go
+# in /etc/conf.d/weewx.NAME (read after /etc/conf.d/weewx).
+
+instance="${RC_SVCNAME#weewx}"
+instance="${instance#.}"
+
+: ${weewx_config:=/etc/weewx/${instance:-weewx}.conf}
+: ${weewx_user:=weewx}
+: ${weewx_group:=weewx}
+
+name="WeeWX${instance:+ ($instance)}"
+description="Weather station data collection and reporting"
+command="/usr/bin/weewxd"
+command_args="--log-label weewxd${instance:+-$instance} $weewx_opts $weewx_config"
+command_user="$weewx_user:$weewx_group"
+supervisor="supervise-daemon"
+# a report cycle can take a while to finish after SIGTERM
+retry="${retry:-TERM/60/KILL/5}"
+
+depend() {
+	need localmount
+	use logger net dns
+	after ntpd chronyd openntpd
+}
+
+start_pre() {
+	if [ ! -r "$weewx_config" ]; then
+		eerror "Configuration file $weewx_config not found"
+		return 1
+	fi
+	checkpath -d -m 0775 -o "$command_user" /run/weewx
+}

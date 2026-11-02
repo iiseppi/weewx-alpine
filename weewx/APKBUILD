@@ -1,0 +1,143 @@
+# Maintainer: Ville <47714239+iiseppi@users.noreply.github.com>
+pkgname=weewx
+pkgver=5.5.2
+pkgrel=0
+pkgdesc="Weather station software: data collection, reports, graphs and uploads"
+url="https://weewx.com/"
+arch="noarch"
+license="GPL-3.0-only"
+depends="
+	python3
+	py3-cheetah
+	py3-configobj
+	py3-ephem
+	py3-pillow
+	py3-pyserial
+	py3-usb
+	"
+checkdepends="py3-pytest tzdata"
+pkgusers="weewx"
+pkggroups="weewx"
+install="$pkgname.pre-install $pkgname.post-install $pkgname.post-upgrade"
+subpackages="
+	$pkgname-pyc
+	$pkgname-doc
+	$pkgname-bash-completion
+	$pkgname-openrc
+	$pkgname-udev
+	"
+source="$pkgname-$pkgver.tar.gz::https://github.com/weewx/weewx/archive/refs/tags/v$pkgver.tar.gz
+	$pkgname.initd
+	$pkgname.confd
+	"
+
+check() {
+	# The release's pyproject.toml has no pytest settings, so pass upstream's
+	# (from git master) here. Skipped:
+	# - anything needing a MySQL server (archive_db_dict1 is the MySQL case)
+	# - weedb/tests/test_errors.py and test_create_nopermission, which need
+	#   to run without root
+	# - test_report_engine: expects glibc's en_US "%x" (09/03/2010); musl
+	#   gives 09/03/10
+	python3 -m pytest -p no:cacheprovider --import-mode=importlib \
+		-o pythonpath="src src/weewx_data/examples src/weewx/tests" \
+		-k "not mysql and not archive_db_dict1 and not test_report_engine and not test_create_nopermission" \
+		src/weeutil/tests \
+		src/weecfg/tests \
+		src/weeplot/tests \
+		src/weectllib/tests \
+		src/weewx/tests \
+		src/weewx/drivers/tests \
+		src/weedb/tests/test_sqlite.py
+}
+
+# The layout follows upstream's deb/rpm packages, so the WeeWX documentation
+# for "Debian/RedHat" installs applies as-is:
+#   /usr/share/weewx      code (BIN_ROOT)
+#   /etc/weewx            WEEWX_ROOT: weewx.conf, skins/, bin/user/, examples/
+#   /var/lib/weewx        SQLITE_ROOT
+#   /var/www/html/weewx   HTML_ROOT
+package() {
+	local bindir="$pkgdir"/usr/share/weewx
+	local cfgdir="$pkgdir"/etc/weewx
+
+	# code, without the unit tests
+	mkdir -p "$bindir"
+	cp -r src/* "$bindir"/
+	find "$bindir" -depth -type d -name tests -exec rm -rf {} +
+
+	# entry points: upstream's shell stubs, pointed at the code
+	mkdir -p "$pkgdir"/usr/bin
+	local f
+	for f in weewxd weectl; do
+		sed -e 's|^WEEWX_BINDIR=.*|WEEWX_BINDIR=/usr/share/weewx|' bin/$f \
+			> "$pkgdir"/usr/bin/$f
+		chmod 755 "$pkgdir"/usr/bin/$f
+	done
+
+	# configuration, with the same path substitutions as the deb/rpm packages
+	mkdir -p "$cfgdir"/bin/user
+	sed -e 's|HTML_ROOT = public_html|HTML_ROOT = /var/www/html/weewx|' \
+		-e 's|SQLITE_ROOT = .*|SQLITE_ROOT = /var/lib/weewx|' \
+		src/weewx_data/weewx.conf > "$cfgdir"/weewx.conf
+	cp -r src/weewx_data/skins "$cfgdir"/
+	cp -r src/weewx_data/examples "$cfgdir"/
+	cp -r src/weewx_data/util/import "$cfgdir"/
+	cp src/weewx_data/bin/user/__init__.py \
+		src/weewx_data/bin/user/extensions.py \
+		"$cfgdir"/bin/user/
+
+	# same ownership and permissions as upstream's postinst: the weewx group
+	# may edit the configuration and install extensions; weewx.conf may hold
+	# passwords and API keys, so it is not world-readable
+	find "$cfgdir" -type d -exec chmod 2775 {} +
+	find "$cfgdir" -type f -exec chmod 664 {} +
+	chmod 660 "$cfgdir"/weewx.conf
+	chown -R weewx:weewx "$cfgdir"
+
+	install -d -m2775 -o weewx -g weewx \
+		"$pkgdir"/var/lib/weewx \
+		"$pkgdir"/var/www/html/weewx
+
+	install -Dm755 "$srcdir"/$pkgname.initd "$pkgdir"/etc/init.d/$pkgname
+	install -Dm644 "$srcdir"/$pkgname.confd "$pkgdir"/etc/conf.d/$pkgname
+
+	# USB station permissions; only eudev (setup-devd udev) reads these
+	install -Dm644 pkg/etc/udev/rules.d/weewx.rules \
+		"$pkgdir"/usr/lib/udev/rules.d/60-weewx.rules
+
+	install -Dm644 src/weewx_data/util/bash_completion.d/weectl \
+		"$pkgdir"/usr/share/bash-completion/completions/weectl
+
+	install -Dm644 README.md docs_src/changes.md docs_src/copyright.md \
+		-t "$pkgdir"/usr/share/doc/$pkgname/
+
+	# weewx_data holds templates that weectl copies, so leave it uncompiled
+	python3 -m compileall -q -x '/weewx_data/' "$bindir"
+}
+
+# abuild's default_pyc only looks in usr/lib/python*
+pyc() {
+	depends=""
+	pkgdesc="Precompiled Python bytecode for $pkgname"
+	install_if="$pkgname=$pkgver-r$pkgrel pyc"
+
+	cd "$pkgdir"
+	local IFS=$'\n'
+	amove $(find usr/share/weewx -type d -name __pycache__)
+}
+
+# abuild before Alpine 3.23 has no default_udev
+udev() {
+	depends=""
+	pkgdesc="$pkgdesc (udev rules)"
+	install_if="udev $pkgname=$pkgver-r$pkgrel"
+
+	amove usr/lib/udev
+}
+
+sha512sums="
+8c326ac6825e8eb81ace67f9ee943903550a6e1849ab86bec1cf5ebd7ff6963cf96147fc6b97ae9bcb3c75947d336a5f612280b40d9f74833f3f7198a7bf16d7  weewx-5.5.2.tar.gz
+adac3beef7277e1ce5b271ae265c3db6ae5644fdcac1987e3072468a7bc9f945c0a5562d6f8c212a2345a24b615ea92727ffc5099dbcc70d9913e5d43a12023e  weewx.initd
+855c4cfc5c2e10d0fd61486e37842667426ad817b0da326e2c6c6d4af4555d3baa0d6117c7e6ee762046413854349a797c9b9b142040b57807755159b759ee7d  weewx.confd
+"

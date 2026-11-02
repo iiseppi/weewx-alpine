@@ -1,0 +1,7 @@
+# signing keys: keys/*.rsa is the private key
+keys/
+packages/
+# abuild work directories
+weewx/src/
+weewx/pkg/
+site/
