@@ -208,3 +208,9 @@ APKBUILD noudattaa aportsin käytäntöjä, joten sen voi lähettää
 - tarkista Maintainer-rivi
 - aja `apkbuild-lint`
 - testaa USB-asema eudevillä
+
+## Lisenssi
+
+Tämän repon paketointitiedostot ja skriptit on lisensoitu GNU General Public
+License v3.0 -lisenssillä (GPL-3.0-only), kuten WeeWX itse. Katso
+[LICENSE](LICENSE).
